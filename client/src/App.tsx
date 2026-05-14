@@ -5,6 +5,9 @@ function App() {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(false);
+  const [csvData, setCsvData] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [recordCount, setRecordCount] = useState(0);
 
   async function askAgent() {
     setLoading(true);
@@ -15,8 +18,7 @@ function App() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ question }),
-    });
+        body: JSON.stringify({ question, csvData }),    });
 
     const data = await response.json();
 
@@ -31,6 +33,25 @@ function App() {
     "What is the total revenue?",
   ];
 
+  function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
+  const file = event.target.files?.[0];
+
+  if (!file) return;
+
+  setFileName(file.name);
+
+  const reader = new FileReader();
+
+  reader.onload = () => {
+    const text = reader.result as string;
+    setCsvData(text);
+    const lines = text.trim().split("\n");
+    setRecordCount(lines.length - 1);
+  };
+
+  reader.readAsText(file);
+}
+
   return (
     <main className="app">
       <section className="sidebar">
@@ -39,7 +60,7 @@ function App() {
 
         <div className="stat-card">
           <span>Total Records</span>
-          <strong>6</strong>
+          <strong>{recordCount || "-"}</strong>
         </div>
 
         <div className="stat-card">
@@ -57,25 +78,52 @@ function App() {
         <div className="hero">
           <p className="badge">AI Data Analyst Agent</p>
           <h2>Ask your data. Get instant insights.</h2>
-          <p>
-            This agent analyses sales data, finds patterns, and explains results
-            in simple business language.
-          </p>
         </div>
 
-        <div className="question-card">
-          <label>Ask a business question</label>
+<div className="question-card">
+  <div className="upload-box">
+    <label htmlFor="csv-upload">Upload CSV file</label>
 
-          <textarea
-            value={question}
-            onChange={(event) => setQuestion(event.target.value)}
-            placeholder="Example: Which region has the highest revenue?"
-          />
+    <input
+      id="csv-upload"
+      type="file"
+      accept=".csv"
+      onChange={handleFileUpload}
+    />
 
-          <button onClick={askAgent} disabled={loading || !question}>
-            {loading ? "Analysing..." : "Ask Agent"}
-          </button>
+    {!fileName && (
+      <p className="upload-helper">
+        Upload a CSV sales dataset to start analysing.
+      </p>
+    )}
+
+    {fileName && (
+      <div className="uploaded-success">
+        <span>✅</span>
+        <div>
+          <strong>{fileName}</strong>
+          <p>Dataset uploaded successfully</p>
         </div>
+      </div>
+    )}
+  </div>
+
+  {csvData && (
+    <>
+      <label>Ask a business question</label>
+
+      <textarea
+        value={question}
+        onChange={(event) => setQuestion(event.target.value)}
+        placeholder="Example: Which region has the highest revenue?"
+      />
+
+      <button onClick={askAgent} disabled={loading || !question}>
+        {loading ? "Analysing..." : "Ask Agent"}
+      </button>
+    </>
+  )}
+</div>
 
         <div className="examples">
           {exampleQuestions.map((item) => (

@@ -192,3 +192,27 @@ button {
   font-size: 17px;
   color: #334155;
 }
+
+.upload-box {
+  margin-bottom: 20px;
+  padding: 18px;
+  background: #f8fafc;
+  border: 1px dashed #94a3b8;
+  border-radius: 16px;
+}
+
+.upload-box label {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.upload-box input {
+  display: block;
+}
+
+.upload-box p {
+  margin: 10px 0 0;
+  color: #2563eb;
+  font-weight: 600;
+}
