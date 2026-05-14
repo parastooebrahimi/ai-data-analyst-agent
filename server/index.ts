@@ -7,92 +7,90 @@ import { parse } from "csv-parse/sync";
 dotenv.config();
 
 const app = express();
+
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
   baseURL: "https://openrouter.ai/api/v1",
 });
 
-type Sale = {
-  product: string;
-  region: string;
-  units: number;
-  price: number;
-};
-
-const salesData: Sale[] = [
-  { product: "Laptop", region: "QLD", units: 3, price: 1200 },
-  { product: "Mouse", region: "QLD", units: 20, price: 40 },
-  { product: "Laptop", region: "NSW", units: 2, price: 1200 },
-  { product: "Keyboard", region: "VIC", units: 10, price: 90 },
-  { product: "Mouse", region: "NSW", units: 15, price: 40 },
-  { product: "Laptop", region: "VIC", units: 1, price: 1200 },
-];
-
-function analyseSalesData(salesData: Sale[]) {  const totalRevenue = salesData.reduce(
-    (sum, item) => sum + item.units * item.price,
-    0
-  );
-
-  const revenueByProduct: Record<string, number> = {};
-  const revenueByRegion: Record<string, number> = {};
-
-  for (const item of salesData) {
-    const revenue = item.units * item.price;
-
-    revenueByProduct[item.product] =
-      (revenueByProduct[item.product] || 0) + revenue;
-
-    revenueByRegion[item.region] =
-      (revenueByRegion[item.region] || 0) + revenue;
-  }
-
-  return {
-    totalRevenue,
-    revenueByProduct,
-    revenueByRegion,
-  };
+function extractJson(text: string) {
+  const cleaned = text.replace(/```json/g, "").replace(/```/g, "").trim();
+  return JSON.parse(cleaned);
 }
 
 app.post("/api/agent", async (req, res) => {
   try {
     const { question, csvData } = req.body;
 
+    if (!question || !csvData) {
+      return res.status(400).json({
+        error: "Question and CSV data are required.",
+      });
+    }
+
     const records = parse(csvData, {
       columns: true,
       skip_empty_lines: true,
+      trim: true,
     });
 
-    const salesData = records.map((row: any) => ({
-      product: row.product,
-      region: row.region,
-      units: Number(row.units),
-      price: Number(row.price),
-    }));
-
-    const analysis = analyseSalesData(salesData);
+    const columns = Object.keys(records[0] || {});
 
     const response = await openai.responses.create({
       model: "openrouter/free",
       instructions: `
-You are an AI data analyst agent.
-You analyse uploaded CSV sales data.
-Explain results clearly and simply.
-Give business-friendly answers.
+You are an AI data analyst agent similar to Power BI Copilot.
+
+The user uploads CSV data and asks for analysis.
+
+You must return ONLY valid JSON. No markdown. No explanation outside JSON.
+
+JSON format:
+{
+  "answer": "short business explanation",
+  "kpis": [
+    { "label": "Total Revenue", "value": "$12000" },
+    { "label": "Top Region", "value": "QLD" }
+  ],
+  "chart": {
+    "title": "Revenue by Region",
+    "type": "bar",
+    "xKey": "name",
+    "yKey": "value",
+    "data": [
+      { "name": "QLD", "value": 1000 },
+      { "name": "NSW", "value": 800 }
+    ]
+  }
+}
+
+Rules:
+- chart.type must be one of: "bar", "line", "pie"
+- kpis should have 2 to 4 items
+- chart.data values must be numbers
+- Use the uploaded CSV records only
+- If the user asks for trend over time, use line chart
+- If the user asks for comparison, use bar chart
+- If the user asks for share/percentage, use pie chart
 `,
       input: `
-User question: ${question}
+User question:
+${question}
 
-Uploaded sales data analysis:
-${JSON.stringify(analysis, null, 2)}
+CSV columns:
+${JSON.stringify(columns)}
+
+CSV records:
+${JSON.stringify(records)}
 `,
     });
 
-    res.json({
-      answer: response.output_text,
-    });
+    const result = extractJson(response.output_text);
+
+    res.json(result);
   } catch (error: any) {
     console.error("SERVER ERROR:", error);
 
