@@ -20,34 +20,82 @@ function App() {
 
     const data = await response.json();
 
-    setAnswer(data.answer);
+    setAnswer(data.answer || data.error);
     setLoading(false);
   }
 
+  const exampleQuestions = [
+    "Which region has the highest revenue?",
+    "What is the best selling product?",
+    "Give me 3 business insights",
+    "What is the total revenue?",
+  ];
+
   return (
     <main className="app">
-      <section className="card">
-        <h1>AI Data Analyst Agent</h1>
+      <section className="sidebar">
+        <h2>Data Agent</h2>
+        <p>AI-powered sales analysis</p>
 
-        <p>
-          Ask a question about the sales data. The AI agent will analyse it and
-          explain the answer.
-        </p>
+        <div className="stat-card">
+          <span>Total Records</span>
+          <strong>6</strong>
+        </div>
 
-        <input
-          value={question}
-          onChange={(event) => setQuestion(event.target.value)}
-          placeholder="Example: Which region has the highest revenue?"
-        />
+        <div className="stat-card">
+          <span>Data Source</span>
+          <strong>Sales CSV</strong>
+        </div>
 
-        <button onClick={askAgent} disabled={loading || !question}>
-          {loading ? "Thinking..." : "Ask Agent"}
-        </button>
+        <div className="stat-card">
+          <span>Status</span>
+          <strong className="online">Online</strong>
+        </div>
+      </section>
+
+      <section className="dashboard">
+        <div className="hero">
+          <p className="badge">AI Data Analyst Agent</p>
+          <h2>Ask your data. Get instant insights.</h2>
+          <p>
+            This agent analyses sales data, finds patterns, and explains results
+            in simple business language.
+          </p>
+        </div>
+
+        <div className="question-card">
+          <label>Ask a business question</label>
+
+          <textarea
+            value={question}
+            onChange={(event) => setQuestion(event.target.value)}
+            placeholder="Example: Which region has the highest revenue?"
+          />
+
+          <button onClick={askAgent} disabled={loading || !question}>
+            {loading ? "Analysing..." : "Ask Agent"}
+          </button>
+        </div>
+
+        <div className="examples">
+          {exampleQuestions.map((item) => (
+            <button key={item} onClick={() => setQuestion(item)}>
+              {item}
+            </button>
+          ))}
+        </div>
 
         {answer && (
-          <div className="answer">
-            <h2>Agent Answer</h2>
-            <p>{answer}</p>
+          <div className="answer-card">
+            <div className="answer-header">
+              <span>🤖</span>
+              <div>
+                <h2>Agent Answer</h2>
+                <p>Generated from sales data analysis</p>
+              </div>
+            </div>
+
+            <div className="answer-body">{answer}</div>
           </div>
         )}
       </section>
