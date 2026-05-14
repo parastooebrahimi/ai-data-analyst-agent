@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import OpenAI from "openai";
+import { parse } from "csv-parse/sync";
 
 dotenv.config();
 
@@ -30,8 +31,7 @@ const salesData: Sale[] = [
   { product: "Laptop", region: "VIC", units: 1, price: 1200 },
 ];
 
-function analyseSalesData() {
-  const totalRevenue = salesData.reduce(
+function analyseSalesData(salesData: Sale[]) {  const totalRevenue = salesData.reduce(
     (sum, item) => sum + item.units * item.price,
     0
   );
@@ -58,33 +58,46 @@ function analyseSalesData() {
 
 app.post("/api/agent", async (req, res) => {
   try {
-    const { question } = req.body;
+    const { question, csvData } = req.body;
 
-    const analysis = analyseSalesData();
+    const records = parse(csvData, {
+      columns: true,
+      skip_empty_lines: true,
+    });
 
-const response = await openai.responses.create({
-  model: "openrouter/free",
-  instructions: `
-You are a simple AI data analyst agent.
-You explain sales data clearly for a beginner.
-Use the provided analysis result.
-Give short, business-friendly answers.
+    const salesData = records.map((row: any) => ({
+      product: row.product,
+      region: row.region,
+      units: Number(row.units),
+      price: Number(row.price),
+    }));
+
+    const analysis = analyseSalesData(salesData);
+
+    const response = await openai.responses.create({
+      model: "openrouter/free",
+      instructions: `
+You are an AI data analyst agent.
+You analyse uploaded CSV sales data.
+Explain results clearly and simply.
+Give business-friendly answers.
 `,
-  input: `
+      input: `
 User question: ${question}
 
-Sales analysis result:
+Uploaded sales data analysis:
 ${JSON.stringify(analysis, null, 2)}
 `,
-});
+    });
 
     res.json({
       answer: response.output_text,
     });
-  } catch (error) {
-    console.error(error);
+  } catch (error: any) {
+    console.error("SERVER ERROR:", error);
+
     res.status(500).json({
-      error: "Something went wrong",
+      error: error.message || "Something went wrong",
     });
   }
 });
